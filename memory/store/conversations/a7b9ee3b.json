@@ -1,0 +1,12 @@
+{
+  "id": "a7b9ee3b",
+  "title": "New Chat",
+  "messages": [
+    {
+      "role": "user",
+      "content": "The quick brown fox",
+      "timestamp": "2026-08-07T16:58:44.892260"
+    }
+  ],
+  "created_at": "2026-08-07T16:58:22.862630"
+}

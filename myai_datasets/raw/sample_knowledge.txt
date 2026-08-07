@@ -1,0 +1,29 @@
+MyAI Sample Knowledge Base
+============================
+
+Python is a high-level programming language known for readability.
+It supports multiple paradigms including procedural, object-oriented, and functional programming.
+
+Machine learning is a subset of artificial intelligence where systems learn patterns from data.
+Neural networks are composed of layers of interconnected nodes called neurons.
+Transformers use self-attention to model relationships between tokens in a sequence.
+
+A tokenizer converts raw text into a sequence of integer token IDs.
+Byte Pair Encoding iteratively merges the most frequent character pairs to build a vocabulary.
+Language models predict the next token given previous tokens in the sequence.
+
+Training a model involves forward passes, loss calculation, backpropagation, and weight updates.
+Checkpoints save model weights so training can be resumed later.
+Validation loss helps detect overfitting on the training data.
+
+Greedy decoding always picks the highest-probability next token.
+Temperature sampling scales logits before softmax to control randomness.
+Top-k sampling restricts choices to the k most likely tokens.
+Top-p nucleus sampling keeps the smallest set of tokens whose cumulative probability exceeds p.
+
+Long-term memory systems store user profiles, documents, and chat history outside model weights.
+Retrieval-augmented generation fetches relevant context before answering a question.
+Tools let an AI read files, run calculations, and execute approved code safely.
+
+Start with a tiny model of a few million parameters and scale up as you gain experience.
+Document every dataset and checkpoint so you can reproduce and compare model versions.

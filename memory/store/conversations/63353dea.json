@@ -1,0 +1,32 @@
+{
+  "id": "63353dea",
+  "title": "New Chat",
+  "messages": [
+    {
+      "role": "user",
+      "content": "I want to hear a joke",
+      "timestamp": "2026-08-07T17:52:00.563168"
+    },
+    {
+      "role": "user",
+      "content": "I want to hear a joke",
+      "timestamp": "2026-08-07T17:55:20.035268"
+    },
+    {
+      "role": "assistant",
+      "content": "I want to hear a joke , to my lord , it I pray you were not be sleep : ' ll hyess , open ' s speak good lord : I had a guess you , I half . Mark you , is not say ' s come again to the gaius . Yes , not then . And you . What ! sir , know you , a man ' s goodly nens a man .",
+      "timestamp": "2026-08-07T17:55:20.758877"
+    },
+    {
+      "role": "user",
+      "content": "You are very funny",
+      "timestamp": "2026-08-07T18:10:22.392188"
+    },
+    {
+      "role": "assistant",
+      "content": "You are very funny of Gian ' d shoutero ' door gralighding stant , and in his face , If all of your grace , I be judge truth That of rage . Would not had been with unknown , as I have a tender for my lord , Though way to live to be a going the poor Rome . And all in your grace is so late ,",
+      "timestamp": "2026-08-07T18:10:23.092993"
+    }
+  ],
+  "created_at": "2026-08-07T17:51:38.380361"
+}

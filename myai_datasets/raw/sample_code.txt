@@ -1,0 +1,13 @@
+"""
+The quick brown fox jumps over the lazy dog.
+Machine learning models learn statistical patterns from large amounts of text.
+Transformers revolutionized natural language processing with self-attention mechanisms.
+Tokenizers break text into subword units that the model can process as integers.
+
+def hello_world():
+    print("Hello from MyAI training data!")
+    return 42
+
+Building your own AI from scratch teaches you how every component works.
+Start small, train often, evaluate carefully, and iterate on your datasets.
+Each model version should record what data it was trained on for reproducibility.
