@@ -190,13 +190,28 @@ class BPETokenizer:
             ids.append(self.token_to_id[EOS_TOKEN])
         return ids
 
-    def decode(self, ids: List[int]) -> str:
-        tokens = [self.id_to_token.get(i, UNK_TOKEN) for i in ids]
-        text = "".join(tokens)
-        text = text.replace(END_OF_WORD, " ")
-        for special in SPECIAL_TOKENS:
-            text = text.replace(special, "")
-        return text.strip()
+    def decode(self, token_ids: list[int]) -> str:
+        """Decodes token IDs into readable text by stripping BPE suffixes and space tokens."""
+        tokens = [self.id_to_token.get(idx, "") for idx in token_ids]
+
+        decoded_text = ""
+        for token in tokens:
+            # Skip special control tokens
+            if token in ("<|endoftext|>", "<pad>", "<unk>"):
+                continue
+
+            # Replace 'Sp' whitespace representation inside tokens
+            clean_token = token.replace("Sp", " ")
+
+            if clean_token.endswith("</w>"):
+                decoded_text += clean_token[:-4] + " "
+            else:
+                decoded_text += clean_token
+
+        # Normalize multiple consecutive spaces into single spaces
+        import re
+        decoded_text = re.sub(r"\s+", " ", decoded_text)
+        return decoded_text.strip()
 
     @property
     def vocab_size(self) -> int:

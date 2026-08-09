@@ -62,15 +62,29 @@ class SearchIndex:
             results.append((doc_id, score, snippet))
         return results
 
-    def build_context(self, query: str, top_k: int = 3, max_chars: int = 1500) -> str:
+    def build_context(
+        self,
+        query: str,
+        top_k: int = 3,
+        max_chars: int = 1500,
+        compress: bool = True,
+    ) -> str:
         """Return concatenated relevant snippets to prepend to a prompt."""
         hits = self.search(query, top_k=top_k)
         parts = []
-        total = 0
         for doc_id, score, snippet in hits:
-            block = f"[{doc_id}] {snippet}"
+            parts.append(f"[{doc_id}] {snippet}")
+        if not parts:
+            return ""
+        if compress:
+            from memory.compress import compress_snippets
+
+            return compress_snippets(parts, max_chars=max_chars)
+        total = 0
+        kept = []
+        for block in parts:
             if total + len(block) > max_chars:
                 break
-            parts.append(block)
+            kept.append(block)
             total += len(block)
-        return "\n\n".join(parts)
+        return "\n\n".join(kept)

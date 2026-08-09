@@ -12,8 +12,8 @@ from pathlib import Path
 @dataclass
 class TrainConfig:
     # Data
-    train_path: str = "datasets/processed/train.txt"
-    val_path: str = "datasets/processed/val.txt"
+    train_path: str = "myai_datasets/processed/train.txt"
+    val_path: str = "myai_datasets/processed/val.txt"
     tokenizer_path: str = "tokenizer/vocab.json"
 
     # Model (tiny v1 defaults — ~1-5M params depending on vocab)
@@ -79,4 +79,49 @@ def small_v2() -> TrainConfig:
         batch_size=16,
         max_steps=10000,
         model_version="v2",
+    )
+
+def v4_wiki() -> TrainConfig:
+    """Preset matching trainer/train_wiki.py (tiktoken GPT-2 vocab)."""
+    return TrainConfig(
+        train_path="myai_datasets/processed/train.txt",
+        val_path="myai_datasets/processed/val.txt",
+        tokenizer_path="tiktoken:gpt2",
+        vocab_size=50257,
+        d_model=256,
+        num_heads=8,
+        num_layers=6,
+        d_ff=1024,
+        max_seq_len=128,
+        batch_size=16,
+        learning_rate=3e-4,
+        max_steps=200000,
+        eval_every=500,
+        save_every=1000,
+        model_version="v4_wiki",
+    )
+
+
+def v5_smart() -> TrainConfig:
+    """
+    Default v5 = scale preset 'small' (~50-80M, modern arch).
+    For ChatGPT-scale ladder see: python -m trainer.train_v5 --list-sizes
+    """
+    return TrainConfig(
+        train_path="myai_datasets/processed/train.txt",
+        val_path="myai_datasets/processed/val.txt",
+        tokenizer_path="tiktoken:gpt2",
+        vocab_size=50257,
+        d_model=512,
+        num_heads=8,
+        num_layers=8,
+        d_ff=2048,
+        max_seq_len=512,
+        dropout=0.1,
+        batch_size=4,
+        learning_rate=2e-4,
+        max_steps=100000,
+        eval_every=500,
+        save_every=1000,
+        model_version="v5_smart",
     )

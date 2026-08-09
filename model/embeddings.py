@@ -8,18 +8,21 @@ import torch.nn as nn
 
 
 class TokenEmbedding(nn.Module):
-    """Maps token IDs -> dense vectors. Just a learned lookup table,
-    scaled by sqrt(d_model) as in the original Transformer paper so the
-    embedding magnitudes are on a similar scale to the positional encodings."""
+    """Maps token IDs -> dense vectors. Classic GPT scales by sqrt(d_model);
+    modern LLaMA-style models usually leave embeddings unscaled."""
 
-    def __init__(self, vocab_size: int, d_model: int):
+    def __init__(self, vocab_size: int, d_model: int, scale: bool = True):
         super().__init__()
         self.d_model = d_model
+        self.scale = scale
         self.embedding = nn.Embedding(vocab_size, d_model)
 
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         # token_ids: (batch, seq_len) -> (batch, seq_len, d_model)
-        return self.embedding(token_ids) * math.sqrt(self.d_model)
+        x = self.embedding(token_ids)
+        if self.scale:
+            x = x * math.sqrt(self.d_model)
+        return x
 
 
 class SinusoidalPositionalEncoding(nn.Module):
@@ -40,10 +43,10 @@ class SinusoidalPositionalEncoding(nn.Module):
         # register as buffer: moves with .to(device), not trained, saved in state_dict
         self.register_buffer("pe", pe, persistent=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, start_pos: int = 0) -> torch.Tensor:
         # x: (batch, seq_len, d_model)
         seq_len = x.size(1)
-        return x + self.pe[:, :seq_len, :]
+        return x + self.pe[:, start_pos : start_pos + seq_len, :]
 
 
 class LearnedPositionalEncoding(nn.Module):
@@ -53,9 +56,17 @@ class LearnedPositionalEncoding(nn.Module):
 
     def __init__(self, d_model: int, max_seq_len: int = 2048):
         super().__init__()
+        self.max_seq_len = max_seq_len
         self.position_embedding = nn.Embedding(max_seq_len, d_model)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, start_pos: int = 0) -> torch.Tensor:
         batch, seq_len, _ = x.shape
-        positions = torch.arange(seq_len, device=x.device).unsqueeze(0).expand(batch, seq_len)
+        end = start_pos + seq_len
+        if end > self.max_seq_len:
+            raise ValueError(
+                f"position {end - 1} exceeds max_seq_len={self.max_seq_len}"
+            )
+        positions = torch.arange(
+            start_pos, end, device=x.device
+        ).unsqueeze(0).expand(batch, seq_len)
         return x + self.position_embedding(positions)

@@ -1,1 +1,14 @@
 ﻿venv/
+.idea/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pt
+checkpoints/**/*.pt
+memory/store/documents/
+memory/store/response_cache.jsonl
+.hf_cache/
+.env
+*.egg-info/
+dist/
+build/

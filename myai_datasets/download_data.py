@@ -4,7 +4,7 @@ import urllib.request
 def download_dataset():
     # Corrected URL (tinyshakespeare)
     url = "https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt"
-    output_dir = "datasets/processed"
+    output_dir = "myai_datasets/processed"
     output_file = os.path.join(output_dir, "train.txt")
 
     os.makedirs(output_dir, exist_ok=True)

@@ -67,8 +67,8 @@ def split_train_val(text: str, val_ratio: float = 0.1) -> Tuple[str, str]:
 
 
 def prepare_dataset(
-    raw_dir: str = "datasets/raw",
-    output_dir: str = "datasets/processed",
+    raw_dir: str = "myai_datasets/raw",
+    output_dir: str = "myai_datasets/processed",
     val_ratio: float = 0.1,
     train_tokenizer: bool = True,
     vocab_size: int = 2000,

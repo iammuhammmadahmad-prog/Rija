@@ -75,20 +75,31 @@ def cmd_train(args):
 
 
 def cmd_generate(args):
-    from inference.generate import InferenceEngine, GenerationConfig
+    # Delegate to generate.py flags for QA/RAG support
+    import sys
+    from generate import main as generate_main
 
-    ckpt = args.checkpoint or _find_latest_checkpoint(args.version)
-    engine = InferenceEngine.from_checkpoint(ckpt, args.tokenizer)
-
-    config = GenerationConfig(
-        max_new_tokens=args.max_tokens,
-        strategy=args.strategy,
-        temperature=args.temperature,
-        top_k=args.top_k,
-        top_p=args.top_p,
-    )
-    output = engine.generate(args.prompt, config)
-    print(output)
+    argv = ["generate.py"]
+    if args.prompt:
+        argv += ["--prompt", args.prompt]
+    if args.checkpoint:
+        argv += ["--checkpoint", args.checkpoint]
+    argv += ["--version", args.version]
+    argv += ["--max-tokens", str(args.max_tokens)]
+    argv += ["--strategy", args.strategy]
+    argv += ["--temperature", str(args.temperature)]
+    argv += ["--top-k", str(args.top_k)]
+    argv += ["--top-p", str(args.top_p)]
+    if args.qa:
+        argv.append("--qa")
+    if args.rag:
+        argv.append("--rag")
+    old = sys.argv
+    try:
+        sys.argv = argv
+        generate_main()
+    finally:
+        sys.argv = old
 
 
 def cmd_evaluate(args):
@@ -121,6 +132,48 @@ def cmd_gui(_args):
     launch_app()
 
 
+def cmd_train_v5(args):
+    from trainer.train_v5 import train_v5
+
+    if args.list_sizes:
+        from model.scaling import print_scale_table
+
+        print_scale_table()
+        return
+
+    train_v5(
+        size=args.size,
+        total_steps=args.steps,
+        batch_size=args.batch_size,
+        seq_len=args.seq_len,
+        lr=args.lr,
+        grad_accum=args.grad_accum,
+        resume_checkpoint=args.resume,
+        no_resume=args.no_resume,
+        force_huge=args.force_huge,
+    )
+
+
+def cmd_finetune_qa(args):
+    from trainer.finetune_qa import finetune_qa
+
+    finetune_qa(
+        base_checkpoint=args.base,
+        qa_path=args.qa,
+        out_dir=args.out,
+        steps=args.steps,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        augment=args.augment,
+    )
+
+
+def cmd_seed_facts(_args):
+    from memory.seed_facts import main as seed_main
+
+    seed_main()
+
+
 def main():
     parser = argparse.ArgumentParser(description="MyAI — build your own LLM")
     sub = parser.add_subparsers(dest="command")
@@ -128,8 +181,8 @@ def main():
     sub.add_parser("smoke", help="Quick tokenizer + model smoke test")
 
     p_prep = sub.add_parser("prepare", help="Prepare dataset (Phase 6)")
-    p_prep.add_argument("--raw-dir", default="datasets/raw")
-    p_prep.add_argument("--output-dir", default="datasets/processed")
+    p_prep.add_argument("--raw-dir", default="myai_datasets/raw")
+    p_prep.add_argument("--output-dir", default="myai_datasets/processed")
     p_prep.add_argument("--val-ratio", type=float, default=0.1)
     p_prep.add_argument("--vocab-size", type=int, default=2000)
 
@@ -141,23 +194,52 @@ def main():
     p_train.add_argument("--prepare", action="store_true", help="Prepare dataset first")
     p_train.add_argument("--vocab-size", type=int, default=2000)
 
+    p_v5 = sub.add_parser("train-v5", help="Pretrain v5 (modern GPT, scale ladder)")
+    p_v5.add_argument(
+        "--size",
+        default="small",
+        choices=["tiny", "small", "base", "medium", "large", "xl", "chatgpt"],
+    )
+    p_v5.add_argument("--list-sizes", action="store_true")
+    p_v5.add_argument("--steps", type=int, default=None)
+    p_v5.add_argument("--batch-size", type=int, default=None)
+    p_v5.add_argument("--seq-len", type=int, default=None)
+    p_v5.add_argument("--lr", type=float, default=None)
+    p_v5.add_argument("--grad-accum", type=int, default=None)
+    p_v5.add_argument("--resume", default=None)
+    p_v5.add_argument("--no-resume", action="store_true")
+    p_v5.add_argument("--force-huge", action="store_true")
+
+    p_ft = sub.add_parser("finetune-qa", help="Fine-tune checkpoint on Q&A for smarter answers")
+    p_ft.add_argument("--base", required=True, help="Base .pt checkpoint")
+    p_ft.add_argument("--qa", default="myai_datasets/qa_seed.jsonl")
+    p_ft.add_argument("--out", default="checkpoints/v5_qa")
+    p_ft.add_argument("--steps", type=int, default=2000)
+    p_ft.add_argument("--batch-size", type=int, default=4)
+    p_ft.add_argument("--lr", type=float, default=1e-4)
+    p_ft.add_argument("--augment", type=int, default=2)
+
+    sub.add_parser("seed-facts", help="Seed memory/RAG facts from qa_seed.jsonl")
+
     p_gen = sub.add_parser("generate", help="Generate text (Phase 8)")
     p_gen.add_argument("prompt", nargs="?", default="The transformer")
     p_gen.add_argument("--checkpoint", default=None)
     p_gen.add_argument("--tokenizer", default="tokenizer/vocab.json")
-    p_gen.add_argument("--version", default="v1")
+    p_gen.add_argument("--version", default="v5_qa")
     p_gen.add_argument("--max-tokens", type=int, default=80)
     p_gen.add_argument("--strategy", default="temperature",
                        choices=["greedy", "temperature", "top_k", "top_p"])
-    p_gen.add_argument("--temperature", type=float, default=0.8)
-    p_gen.add_argument("--top-k", type=int, default=40)
+    p_gen.add_argument("--temperature", type=float, default=0.3)
+    p_gen.add_argument("--top-k", type=int, default=20)
     p_gen.add_argument("--top-p", type=float, default=0.9)
+    p_gen.add_argument("--qa", action="store_true", help="Q&A prompt template")
+    p_gen.add_argument("--rag", action="store_true", help="Retrieve facts into prompt")
 
     p_eval = sub.add_parser("evaluate", help="Evaluate model (Phase 14)")
     p_eval.add_argument("--checkpoint", default=None)
     p_eval.add_argument("--tokenizer", default="tokenizer/vocab.json")
     p_eval.add_argument("--version", default="v1")
-    p_eval.add_argument("--val-path", default="datasets/processed/val.txt")
+    p_eval.add_argument("--val-path", default="myai_datasets/processed/val.txt")
     p_eval.add_argument("--batch-size", type=int, default=8)
 
     sub.add_parser("gui", help="Launch desktop GUI (Phase 12/13)")
@@ -168,6 +250,9 @@ def main():
         "smoke": cmd_smoke,
         "prepare": cmd_prepare,
         "train": cmd_train,
+        "train-v5": cmd_train_v5,
+        "finetune-qa": cmd_finetune_qa,
+        "seed-facts": cmd_seed_facts,
         "generate": cmd_generate,
         "evaluate": cmd_evaluate,
         "gui": cmd_gui,

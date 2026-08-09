@@ -65,16 +65,54 @@
       "resume_from": null
     }
   }
-, "v4_wiki": {
+,
+  "v4_wiki": {
     "model_version": "v4_wiki",
+    "vocab_size": 50257,
+    "d_model": 256,
+    "num_heads": 8,
+    "num_layers": 6,
+    "d_ff": 1024,
+    "max_seq_len": 128,
+    "batch_size": 16,
+    "learning_rate": 0.0003,
+    "max_steps": 200000,
+    "notes": "Current wiki pretrain (~18M params)"
+  },
+  "v5_smart": {
+    "model_version": "v5_smart",
+    "alias_of": "v5_small",
+    "architecture": "modern",
+    "features": ["RoPE", "RMSNorm", "SwiGLU", "SDPA", "GQA"],
+    "sizes": ["tiny", "small", "base", "medium", "large", "xl", "chatgpt"],
+    "notes": "Scale ladder via: python -m trainer.train_v5 --list-sizes. chatgpt=~175B reference (blocked locally)."
+  },
+  "v5_small": {
+    "model_version": "v5_small",
+    "architecture": "modern",
     "vocab_size": 50257,
     "d_model": 512,
     "num_heads": 8,
     "num_layers": 8,
     "d_ff": 2048,
-    "max_seq_len": 256,
-    "batch_size": 32,
-    "learning_rate": 0.0003,
-    "max_steps": 50000
+    "max_seq_len": 512,
+    "approx_params": "60M",
+    "hardware": "laptop GPU"
+  },
+  "v5_chatgpt_ref": {
+    "model_version": "v5_chatgpt",
+    "architecture": "modern",
+    "d_model": 12288,
+    "num_layers": 96,
+    "num_heads": 96,
+    "approx_params": "175B",
+    "notes": "GPT-3 / ChatGPT-era class — config only, needs datacenter GPUs"
+  },
+  "v5_qa": {
+    "model_version": "v5_qa",
+    "base": "v5_smart or v4_wiki",
+    "finetune": "qa",
+    "qa_file": "myai_datasets/qa_seed.jsonl",
+    "notes": "Q&A fine-tuned checkpoint + RAG for factual answers"
   }
 }

@@ -15,8 +15,10 @@ from typing import Optional
 from memory.chat_history import ChatHistory
 from memory.knowledge_base import KnowledgeBase
 from memory.search import SearchIndex
+from memory.seed_facts import seed_from_qa
 from tools.registry import ToolRegistry
 from inference.generate import InferenceEngine, GenerationConfig
+from inference.rag import build_rag_prompt, extract_answer
 from trainer.config import TrainConfig, tiny_v1
 from trainer.train import Trainer
 from myai_datasets.prepare import prepare_dataset
@@ -39,6 +41,7 @@ class MyAIApp:
         self.train_thread: Optional[threading.Thread] = None
 
         self._build_ui()
+        self._ensure_fact_seed()
         self._load_knowledge_into_index()
         self._new_conversation()
 
@@ -95,7 +98,9 @@ class MyAIApp:
         ttk.Entry(settings, textvariable=self.max_tokens_var, width=6).grid(row=0, column=5, padx=4)
 
         self.use_memory_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(settings, text="Use memory retrieval", variable=self.use_memory_var).grid(row=0, column=6, padx=8)
+        ttk.Checkbutton(settings, text="Use RAG memory", variable=self.use_memory_var).grid(row=0, column=6, padx=8)
+        self.qa_mode_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(settings, text="Q&A mode", variable=self.qa_mode_var).grid(row=0, column=7, padx=8)
 
         self.chat_display = scrolledtext.ScrolledText(self.chat_tab, wrap=tk.WORD, state=tk.DISABLED, height=25)
         self.chat_display.pack(fill=tk.BOTH, expand=True, padx=4, pady=4)
@@ -112,6 +117,14 @@ class MyAIApp:
     def _append_chat(self, role: str, text: str):
         self.chat_display.config(state=tk.NORMAL)
         self.chat_display.insert(tk.END, f"\n[{role.upper()}]\n{text}\n")
+        self.chat_display.config(state=tk.DISABLED)
+        self.chat_display.see(tk.END)
+
+    def _append_stream_piece(self, piece: str):
+        """Append a streamed token without a new role header."""
+        self.chat_display.config(state=tk.NORMAL)
+        # Remove trailing newline from the empty assistant stub on first piece
+        self.chat_display.insert(tk.END, piece)
         self.chat_display.config(state=tk.DISABLED)
         self.chat_display.see(tk.END)
 
@@ -151,24 +164,43 @@ class MyAIApp:
             self._append_chat("assistant", "No model loaded. Go to Models tab or click Load Checkpoint.")
             return
 
-        prompt = text
-        if self.use_memory_var.get():
-            context = self.search_index.build_context(text)
-            if context:
-                prompt = f"Context:\n{context}\n\nUser: {text}\nAssistant:"
+        use_qa = self.qa_mode_var.get()
+        use_rag = self.use_memory_var.get()
+        if use_qa or use_rag:
+            prompt = build_rag_prompt(
+                text,
+                self.search_index if use_rag else None,
+                qa_style=True,
+            )
+        else:
+            prompt = text
 
         config = GenerationConfig(
             max_new_tokens=self.max_tokens_var.get(),
             strategy=self.strategy_var.get(),
             temperature=self.temp_var.get(),
+            repetition_penalty=1.15,
         )
 
-        try:
-            response = self.engine.generate(prompt, config)
-            self._append_chat("assistant", response)
-            self.chat_history.add_message(self.current_conv_id, "assistant", response)
-        except Exception as e:
-            self._append_chat("system", f"Generation error: {e}")
+        # Stream tokens on a worker thread so the UI stays responsive
+        self._append_chat("assistant", "")
+        chunks: list = []
+
+        def _run():
+            try:
+                for piece in self.engine.generate_stream(prompt, config):
+                    chunks.append(piece)
+                    self.root.after(0, lambda p=piece: self._append_stream_piece(p))
+                raw = "".join(chunks)
+                response = extract_answer(prompt + raw) if (use_qa or use_rag) else raw
+                # Replace streamed raw with cleaned answer in UI
+                if response and response != raw:
+                    self.root.after(0, lambda: self._replace_last_assistant(response))
+                self.chat_history.add_message(self.current_conv_id, "assistant", response)
+            except Exception as e:
+                self.root.after(0, lambda: self._append_chat("system", f"Generation error: {e}"))
+
+        threading.Thread(target=_run, daemon=True).start()
 
     # ------------------------------------------------------------------ #
     # Trainer tab (Phase 13)
@@ -344,9 +376,30 @@ class MyAIApp:
             for line in lines[-50:]:
                 self.logs_display.insert(tk.END, line + "\n")
 
+    def _ensure_fact_seed(self):
+        if not self.knowledge_base.list_documents():
+            try:
+                seed_from_qa()
+            except Exception:
+                pass
+
     def _load_knowledge_into_index(self):
         for doc in self.knowledge_base.load_all_documents():
             self.search_index.add(doc["id"], doc["content"])
+
+    def _replace_last_assistant(self, text: str):
+        """Replace the last assistant block with a cleaned answer."""
+        self.chat_display.config(state=tk.NORMAL)
+        content = self.chat_display.get("1.0", tk.END)
+        marker = "\n[ASSISTANT]\n"
+        idx = content.rfind(marker)
+        if idx >= 0:
+            # delete from marker body to end, then rewrite
+            start_index = f"1.0 + {idx + len(marker)} chars"
+            self.chat_display.delete(start_index, tk.END)
+            self.chat_display.insert(tk.END, text + "\n")
+        self.chat_display.config(state=tk.DISABLED)
+        self.chat_display.see(tk.END)
 
     def run(self):
         self.root.mainloop()

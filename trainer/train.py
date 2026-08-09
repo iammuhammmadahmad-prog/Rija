@@ -77,22 +77,21 @@ class Trainer:
         if path is None:
             path = str(ckpt_dir / f"step_{self.step:06d}_{tag}.pt")
 
+        model_cfg = (
+            vars(self.model.config)
+            if hasattr(self.model.config, "__dict__")
+            else self.model.config
+        )
         state = {
             "step": self.step,
             "best_val_loss": self.best_val_loss,
             "model_state_dict": self.model.state_dict(),
+            "model_state": self.model.state_dict(),  # alias for wiki-style loaders
             "optimizer_state_dict": self.optimizer.state_dict(),
             "config": self.config.to_dict(),
-           "model_config": vars(self.model.config) if hasattr(self.model.config, "__dict__") else self.model.config,
-                "vocab_size": self.model.config.vocab_size,
-                "d_model": self.model.config.d_model,
-                "num_heads": self.model.config.num_heads,
-                "num_layers": self.model.config.num_layers,
-                "d_ff": self.model.config.d_ff,
-                "max_seq_len": self.model.config.max_seq_len,
-                "dropout": self.model.config.dropout,
-            },
-        
+            "model_config": model_cfg,
+            "tokenizer_kind": "bpe",
+        }
         torch.save(state, path)
 
         # Also write a convenient "latest" symlink-like copy
