@@ -155,7 +155,7 @@ def load_checkpoint(
     tokenizer_kind: Optional[str] = None,
 ) -> LoadedCheckpoint:
     """
-    Load any MyAI checkpoint format and pair it with the correct tokenizer.
+    Load any Rija checkpoint format and pair it with the correct tokenizer.
     """
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     path = Path(checkpoint_path)

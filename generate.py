@@ -1,5 +1,5 @@
 """
-Interactive generation for MyAI checkpoints (BPE, wiki, or Q&A fine-tuned).
+Interactive generation for Rija checkpoints (BPE, wiki, or Q&A fine-tuned).
 
 Usage:
   python generate.py --checkpoint checkpoints/v5_qa/latest.pt --qa
@@ -28,7 +28,7 @@ def _maybe_load_rag_index():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MyAI interactive text generation")
+    parser = argparse.ArgumentParser(description="Rija interactive text generation")
     parser.add_argument("--checkpoint", default=None)
     parser.add_argument("--version", default="v5_qa", help="Checkpoint version folder fallback")
     parser.add_argument("--max-tokens", type=int, default=60)

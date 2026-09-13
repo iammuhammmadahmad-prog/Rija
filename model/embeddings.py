@@ -49,6 +49,22 @@ class SinusoidalPositionalEncoding(nn.Module):
         return x + self.pe[:, start_pos : start_pos + seq_len, :]
 
 
+def resize_learned_pos_weight(weight: torch.Tensor, new_len: int) -> torch.Tensor:
+    """Interpolate a learned position table so checkpoints can change seq_len."""
+    old_len, _dim = weight.shape
+    if old_len == new_len:
+        return weight
+    if new_len < old_len:
+        return weight[:new_len].contiguous()
+    interpolated = torch.nn.functional.interpolate(
+        weight.detach().T.unsqueeze(0),
+        size=new_len,
+        mode="linear",
+        align_corners=True,
+    )
+    return interpolated.squeeze(0).T.contiguous()
+
+
 class LearnedPositionalEncoding(nn.Module):
     """Alternative to sinusoidal: a learned embedding table for positions
     (like GPT-2 uses). Swap this in for SinusoidalPositionalEncoding if

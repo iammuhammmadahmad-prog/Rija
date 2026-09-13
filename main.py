@@ -1,5 +1,5 @@
 """
-MyAI — CLI entry point for all phases.
+Rija — CLI entry point for all phases.
 
 Usage:
     python main.py prepare          # Phase 6: build dataset + tokenizer
@@ -7,6 +7,7 @@ Usage:
     python main.py generate "..."   # Phase 8: run inference
     python main.py evaluate         # Phase 14: metrics
     python main.py gui              # Phase 12/13: launch desktop app
+    python main.py studio           # Web playground for testing the model
     python main.py smoke            # Quick end-to-end smoke test
 """
 
@@ -132,6 +133,12 @@ def cmd_gui(_args):
     launch_app()
 
 
+def cmd_studio(args):
+    from ui.studio import launch_studio
+
+    launch_studio(host=args.host, port=args.port)
+
+
 def cmd_train_v5(args):
     from trainer.train_v5 import train_v5
 
@@ -175,7 +182,7 @@ def cmd_seed_facts(_args):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="MyAI — build your own LLM")
+    parser = argparse.ArgumentParser(description="Rija — build your own LLM")
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("smoke", help="Quick tokenizer + model smoke test")
@@ -244,6 +251,10 @@ def main():
 
     sub.add_parser("gui", help="Launch desktop GUI (Phase 12/13)")
 
+    p_studio = sub.add_parser("studio", help="Launch Rija Studio web playground")
+    p_studio.add_argument("--host", default="127.0.0.1")
+    p_studio.add_argument("--port", type=int, default=8765)
+
     args = parser.parse_args()
 
     commands = {
@@ -256,6 +267,7 @@ def main():
         "generate": cmd_generate,
         "evaluate": cmd_evaluate,
         "gui": cmd_gui,
+        "studio": cmd_studio,
     }
 
     if args.command is None:

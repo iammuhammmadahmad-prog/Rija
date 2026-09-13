@@ -24,10 +24,10 @@ from trainer.train import Trainer
 from myai_datasets.prepare import prepare_dataset
 
 
-class MyAIApp:
+class RijaApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("MyAI — Build Your Own LLM")
+        self.root.title("Rija — Build Your Own LLM")
         self.root.geometry("1100x750")
         self.root.minsize(900, 600)
 
@@ -406,7 +406,7 @@ class MyAIApp:
 
 
 def launch_app():
-    app = MyAIApp()
+    app = RijaApp()
     app.run()
 
 

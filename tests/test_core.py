@@ -1,4 +1,4 @@
-"""Unit tests for MyAI components."""
+"""Unit tests for Rija components."""
 
 import sys
 from pathlib import Path
@@ -211,3 +211,88 @@ def test_checkpoint_roundtrip_unified_loader():
         loaded = load_checkpoint(str(path), tokenizer_path=str(tok_path), tokenizer_kind="bpe")
         assert loaded.step == 42
         assert loaded.config.vocab_size == 40
+
+
+def test_wiki_token_packing():
+    import numpy as np
+    from myai_datasets.wikipedia_loader import append_document, windows_from_tokens
+
+    buf: list[int] = []
+    append_document(buf, [1, 2, 3, 4, 5], eos_id=99)
+    assert buf[-1] == 99
+    append_document(buf, [7, 99], eos_id=99)
+    assert buf[-1] == 99
+    assert buf.count(99) == 2
+
+    tokens = np.arange(10, dtype=np.int64)
+    windows, leftover = windows_from_tokens(tokens, seq_len=4)
+    assert windows.shape == (2, 5)
+    assert list(windows[0]) == [0, 1, 2, 3, 4]
+    assert list(windows[1]) == [4, 5, 6, 7, 8]
+    assert list(leftover) == [8, 9]
+
+
+def test_resize_learned_pos_weight():
+    from model.embeddings import resize_learned_pos_weight
+
+    weight = torch.randn(8, 16)
+    same = resize_learned_pos_weight(weight, 8)
+    assert same.shape == (8, 16)
+    shorter = resize_learned_pos_weight(weight, 5)
+    assert shorter.shape == (5, 16)
+    assert torch.equal(shorter, weight[:5])
+    longer = resize_learned_pos_weight(weight, 16)
+    assert longer.shape == (16, 16)
+
+
+def test_v4_wiki_lr_warmup():
+    from trainer.train_wiki import get_lr
+
+    assert abs(get_lr(0, 200000, max_lr=6e-4, warmup_steps=2000)) < 1e-12
+    assert abs(get_lr(2000, 200000, max_lr=6e-4, warmup_steps=2000) - 6e-4) < 1e-9
+    mid = get_lr(101000, 200000, max_lr=6e-4, warmup_steps=2000)
+    assert 6e-5 < mid < 6e-4
+
+
+def test_studio_lists_checkpoints():
+    from ui.studio import list_checkpoints
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        version = root / "v4_wiki"
+        version.mkdir()
+        (version / "latest.pt").write_bytes(b"ckpt")
+        items = list_checkpoints(root)
+        assert items
+        assert items[0]["version"] == "v4_wiki"
+        assert items[0]["name"] == "latest.pt"
+
+
+def test_cpu_core_classification():
+    from trainer.cpu_runtime import classify_cores, has_cpu_bf16_accel
+
+    # Arrow Lake-style buckets: 6P @ 5.1GHz, 8E @ 4.4GHz, 2 LPE @ 2.5GHz
+    p, e, lpe = classify_cores(
+        {
+            0: 5_100_000,
+            1: 5_100_000,
+            2: 5_100_000,
+            3: 5_100_000,
+            4: 5_100_000,
+            5: 5_100_000,
+            6: 4_400_000,
+            7: 4_400_000,
+            8: 4_400_000,
+            9: 4_400_000,
+            10: 4_400_000,
+            11: 4_400_000,
+            12: 4_400_000,
+            13: 4_400_000,
+            14: 2_500_000,
+            15: 2_500_000,
+        }
+    )
+    assert p == [0, 1, 2, 3, 4, 5]
+    assert e == [6, 7, 8, 9, 10, 11, 12, 13]
+    assert lpe == [14, 15]
+    assert has_cpu_bf16_accel() in (True, False)

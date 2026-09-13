@@ -2,7 +2,7 @@
 Two-tier response cache for deterministic generations.
 
 Adapted from OmniRoute's semantic cache idea (LRU + optional disk),
-simplified for local MyAI: in-memory LRU keyed by SHA-256 of
+simplified for local Rija: in-memory LRU keyed by SHA-256 of
 (model_id + prompt + generation settings). Only caches greedy /
 temperature=0 style requests by default.
 """

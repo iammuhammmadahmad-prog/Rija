@@ -7,6 +7,7 @@ architecture='modern'  — ChatGPT-era style (RoPE, RMSNorm, SwiGLU, SDPA, optio
 
 from __future__ import annotations
 
+import math
 from typing import List, Optional, Tuple
 
 import torch
@@ -88,6 +89,7 @@ class GPTLanguageModel(nn.Module):
             self.output_projection.weight = self.token_embedding.embedding.weight
 
         self.apply(self._init_weights)
+        self._rescale_residual_projections()
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -96,6 +98,17 @@ class GPTLanguageModel(nn.Module):
                 nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
+    def _rescale_residual_projections(self) -> None:
+        """GPT-2 residual scaling: keeps deep stacks from blowing up at init."""
+        std = 0.02 / math.sqrt(2.0 * max(self.config.num_layers, 1))
+        for block in self.blocks:
+            nn.init.normal_(block.attn.w_out.weight, mean=0.0, std=std)
+            ff = block.ff
+            if hasattr(ff, "w2"):
+                nn.init.normal_(ff.w2.weight, mean=0.0, std=std)
+            elif hasattr(ff, "net"):
+                nn.init.normal_(ff.net[2].weight, mean=0.0, std=std)
 
     def forward(
         self,
@@ -120,9 +133,8 @@ class GPTLanguageModel(nn.Module):
             x = self.positional_encoding(x, start_pos=past_len)
         x = self.dropout(x)
 
-        # For modern+SDPA prefills we can omit explicit mask; keep mask for cache/classic
-        modern = self.config.architecture == "modern"
-        if past_len == 0 and modern and not use_cache:
+        # Skip materializing a mask on the fused SDPA causal path (classic + modern).
+        if past_len == 0 and not use_cache:
             mask = None
         elif past_len == 0:
             mask = causal_mask(seq_len, device=token_ids.device)
@@ -160,7 +172,7 @@ class GPTLanguageModel(nn.Module):
         loss = None
         if targets is not None:
             loss = nn.functional.cross_entropy(
-                logits.view(-1, logits.size(-1)),
+                logits.float().view(-1, logits.size(-1)),
                 targets.view(-1),
                 ignore_index=-100,
             )

@@ -122,6 +122,8 @@ class MultiHeadAttention(nn.Module):
                 is_causal=False,
             )
         else:
+            if mask is None:
+                mask = causal_mask(q.size(2), device=q.device)
             attn_output, _ = scaled_dot_product_attention(q, k_rep, v_rep, mask=mask)
 
         b, h, t, d = attn_output.shape

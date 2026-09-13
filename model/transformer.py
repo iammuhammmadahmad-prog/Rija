@@ -19,7 +19,7 @@ class FeedForward(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(d_model, d_ff),
-            nn.GELU(),
+            nn.GELU(approximate="tanh"),
             nn.Linear(d_ff, d_model),
             nn.Dropout(dropout),
         )
@@ -65,7 +65,7 @@ class TransformerBlock(nn.Module):
             dropout=dropout,
             n_kv_heads=n_kv_heads if modern else None,
             use_rope=modern,
-            use_sdpa=modern,
+            use_sdpa=True,
             max_seq_len=max_seq_len,
         )
         self.ln2 = Norm(d_model)

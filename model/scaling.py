@@ -1,5 +1,5 @@
 """
-ChatGPT-scale ladder for MyAI v5.
+ChatGPT-scale ladder for Rija v5.
 
 True ChatGPT / GPT-3.5 class models are ~175B params and need datacenter GPUs.
 This module defines a practical scale ladder from laptop → single GPU → cluster,

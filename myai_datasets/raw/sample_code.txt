@@ -5,7 +5,7 @@ Transformers revolutionized natural language processing with self-attention mech
 Tokenizers break text into subword units that the model can process as integers.
 
 def hello_world():
-    print("Hello from MyAI training data!")
+    print("Hello from Rija training data!")
     return 42
 
 Building your own AI from scratch teaches you how every component works.

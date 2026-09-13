@@ -1,4 +1,4 @@
-MyAI Sample Knowledge Base
+Rija Sample Knowledge Base
 ============================
 
 Python is a high-level programming language known for readability.

@@ -2,7 +2,7 @@
 Lightweight context compression for RAG / long prompts.
 
 Inspired by OmniRoute's lite compression (whitespace collapse, filler
-stripping, hard budget). Keeps MyAI educational — no external models.
+stripping, hard budget). Keeps Rija educational — no external models.
 """
 
 from __future__ import annotations

@@ -4,12 +4,12 @@ Machine learning models learn statistical patterns from large amounts of text.
 Transformers revolutionized natural language processing with self-attention mechanisms.
 Tokenizers break text into subword units that the model can process as integers.
 def hello_world():
- print("Hello from MyAI training data!")
+ print("Hello from Rija training data!")
  return 42
 Building your own AI from scratch teaches you how every component works.
 Start small, train often, evaluate carefully, and iterate on your datasets.
 Each model version should record what data it was trained on for reproducibility.
-MyAI Sample Knowledge Base
+Rija Sample Knowledge Base
 ============================
 Python is a high-level programming language known for readability.
 It supports multiple paradigms including procedural, object-oriented, and functional programming.

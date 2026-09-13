@@ -1,4 +1,4 @@
-# MyAI — Build Your Own LLM From Scratch
+# Rija — Build Your Own LLM From Scratch
 
 A phased roadmap for building a transformer language model without relying on
 external tokenizer or model libraries (no `tiktoken`, no `transformers`).
@@ -41,7 +41,7 @@ python main.py gui              # Desktop app (Phases 12/13)
 ## Project structure
 
 ```
-MyAI/
+Rija/
 ├── datasets/
 │   ├── raw/              # Put your text files here
 │   ├── processed/        # train.txt + val.txt (generated)

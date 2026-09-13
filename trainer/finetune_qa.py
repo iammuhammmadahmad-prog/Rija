@@ -1,5 +1,5 @@
 """
-Fine-tune a MyAI checkpoint on Q&A pairs for smarter answers.
+Fine-tune a Rija checkpoint on Q&A pairs for smarter answers.
 
 Recommended flow:
   1) Pretrain:  python -m trainer.train_v5
@@ -171,7 +171,7 @@ def finetune_qa(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fine-tune MyAI on Q&A data")
+    parser = argparse.ArgumentParser(description="Fine-tune Rija on Q&A data")
     parser.add_argument(
         "--base",
         default=None,

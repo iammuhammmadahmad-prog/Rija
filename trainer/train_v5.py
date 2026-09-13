@@ -25,6 +25,7 @@ if str(root_dir) not in sys.path:
 from model.model import GPTLanguageModel
 from model.scaling import SCALE_PRESETS, estimate_parameters, get_preset, print_scale_table
 from myai_datasets.wikipedia_loader import get_wiki_dataloader
+from trainer.cpu_runtime import configure_cpu_runtime, has_cpu_bf16_accel
 
 
 HUGE_SIZES = {"large", "xl", "chatgpt"}
@@ -56,8 +57,8 @@ def _unwrap_state_dict(model: torch.nn.Module):
     return model.state_dict()
 
 
-def _payload(model, config, step, optimizer=None, size_name: str = "small"):
-    state_dict = _unwrap_state_dict(model)
+def _payload(model, config, step, optimizer=None, size_name: str = "small", schedule=None):
+    state_dict = {k: v.detach().cpu() for k, v in _unwrap_state_dict(model).items()}
     out = {
         "model_state": state_dict,
         "model_state_dict": state_dict,
@@ -70,6 +71,8 @@ def _payload(model, config, step, optimizer=None, size_name: str = "small"):
     }
     if optimizer is not None:
         out["optimizer_state_dict"] = optimizer.state_dict()
+    if schedule is not None:
+        out["schedule"] = dict(schedule)
     return out
 
 
@@ -105,11 +108,20 @@ def train_v5(
     grad_accum = grad_accum if grad_accum is not None else preset.grad_accum
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    cpu_info = configure_cpu_runtime() if device == "cpu" else None
     config = preset.to_gpt_config()
     # Allow seq_len override without rebuilding unrelated dims
     config.max_seq_len = seq_len
 
     print(f"Using device: {device}")
+    if cpu_info is not None:
+        print(
+            f"[laptop] P-cores={cpu_info['p_cores']} ({cpu_info['threads']} threads) | "
+            f"E-cores={cpu_info['e_cores']} for data prefetch | "
+            f"skipped LPE={cpu_info['lpe_cores']}"
+        )
+        if cpu_info["power_profile"]:
+            print(f"[laptop] power profile -> {cpu_info['power_profile']}")
     print(
         f"v5 size={size} arch={config.architecture} "
         f"d_model={config.d_model} layers={config.num_layers} "
@@ -156,6 +168,13 @@ def train_v5(
                 optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             except Exception as e:
                 print(f"[Checkpoint] Optimizer not restored ({e})")
+        saved = checkpoint.get("schedule") or {}
+        saved_lr = saved.get("max_lr")
+        if saved_lr is not None and abs(float(saved_lr) - float(lr)) > 1e-12:
+            print(
+                f"[Schedule] Checkpoint max_lr={saved_lr:.2e} vs live {lr:.2e}; "
+                "using the live --lr / preset value."
+            )
         start_step = int(checkpoint.get("step", 0)) + 1
         print(f"[Checkpoint] Resuming from step {start_step}")
     else:
@@ -165,17 +184,30 @@ def train_v5(
         print(f"[Done] Already past total_steps={total_steps}")
         return
 
-    if compile_model:
+    if compile_model and device == "cuda":
         try:
             model = torch.compile(model)
             print("[PyTorch] torch.compile enabled")
         except Exception as e:
             print(f"[PyTorch] compile skipped: {e}")
+    elif compile_model:
+        print("[PyTorch] compile skipped on CPU")
 
     use_cuda_amp = device == "cuda"
-    scaler = torch.amp.GradScaler("cuda", enabled=use_cuda_amp)
+    amp_on = use_cuda_amp or (device == "cpu" and has_cpu_bf16_accel())
+    amp_dtype = torch.bfloat16
+    if device == "cuda" and not torch.cuda.is_bf16_supported():
+        amp_dtype = torch.float16
+    scaler = torch.amp.GradScaler("cuda", enabled=use_cuda_amp and amp_dtype == torch.float16)
 
-    dataloader = get_wiki_dataloader(batch_size=batch_size, seq_len=seq_len)
+    e_cores = (cpu_info or {}).get("e_cores") or None
+    dataloader = get_wiki_dataloader(
+        batch_size=batch_size,
+        seq_len=seq_len,
+        prefetch=4 if device == "cpu" else 8,
+        pin_memory=device == "cuda",
+        worker_affinity=e_cores,
+    )
     data_iter = iter(dataloader)
     model.train()
     start_time = time.time()
@@ -184,7 +216,13 @@ def train_v5(
     optimizer.zero_grad(set_to_none=True)
 
     warmup = max(100, min(2000, total_steps // 50))
-    print(f"\n--- v5_{size} pretrain ({start_step} -> {total_steps}) ---")
+    schedule = {"max_lr": float(lr), "total_steps": int(total_steps), "warmup_steps": int(warmup)}
+    print(
+        f"\n--- v5_{size} pretrain ({start_step} -> {total_steps}) | "
+        f"params={n_params:,} | batch={batch_size} accum={grad_accum} "
+        f"seq={seq_len} | amp={amp_on} {amp_dtype if amp_on else 'fp32'} | "
+        f"max_lr={lr:.2e} ---"
+    )
     for step in range(start_step, total_steps + 1):
         try:
             x, y = next(data_iter)
@@ -198,7 +236,10 @@ def train_v5(
             pg["lr"] = current_lr
 
         if device == "cpu":
-            with torch.amp.autocast("cpu", dtype=torch.bfloat16):
+            if amp_on:
+                with torch.amp.autocast("cpu", dtype=amp_dtype):
+                    _, loss = model(x, y)
+            else:
                 _, loss = model(x, y)
             loss = loss / grad_accum
             loss.backward()
@@ -237,7 +278,9 @@ def train_v5(
             running_count = 0
 
         if step % save_every == 0 or step == total_steps:
-            payload = _payload(model, config, step, optimizer=optimizer, size_name=size)
+            payload = _payload(
+                model, config, step, optimizer=optimizer, size_name=size, schedule=schedule
+            )
             path = ckpt_dir / f"step_{step:06d}.pt"
             torch.save(payload, path)
             torch.save(payload, ckpt_dir / "latest.pt")
@@ -251,7 +294,7 @@ def train_v5(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train MyAI v5 (modern GPT, ChatGPT-scale ladder)"
+        description="Train Rija v5 (modern GPT, ChatGPT-scale ladder)"
     )
     parser.add_argument(
         "--size",
