@@ -134,4 +134,4 @@ python -m pytest tests/ -v
 
 v5 tiny has learned Wikipedia-shaped English. It is not a chat assistant. Samples can look fluent and still be empty or circular. That is expected at ~19M parameters with a 50k GPT-2 vocab on a laptop.
 
-Next useful upgrades are a smaller custom vocab (4k–8k) trained on the same data, or more tokens on this architecture — not a larger size preset on CPU.
+Next useful upgrades are a smaller custom vocab (4k–8k) trained on the same data, or more tokens on this architecture not a larger size preset on CPU.
