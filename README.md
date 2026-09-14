@@ -1,8 +1,8 @@
-# Rija — Build Your Own LLM From Scratch
+# Rija! Build Your Own LLM From Scratch
 
 Rija is a from-scratch language model stack: tokenizer, transformer, trainer, RAG, CLI, and a local Studio UI. Weights start random. There is no Hugging Face model download for the network itself.
 
-The current laptop run is **v5 tiny — 19.2M parameters**, pretrained on Wikipedia with a 100,000-step budget.
+The current laptop run is **v5 tiny 19.2M parameters**, pretrained on Wikipedia with a 100,000-step budget.
 
 ## Stack
 
