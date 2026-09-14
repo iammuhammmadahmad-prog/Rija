@@ -133,3 +133,7 @@ python -m pytest tests/ -v
 - **Start tiny** — v1 fits on CPU with ~1-5M parameters
 - **Version everything** — checkpoints, datasets, and configs are tracked
 - **Modular** — memory, tools, and UI are separate from the model core
+
+---
+
+**Rija — Build your own LLM from scratch.**
